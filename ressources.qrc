@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/shaders">
+        <file>viewPersp.vert</file>
+        <file>viewPoints.frag</file>
+    </qresource>
+</RCC>
