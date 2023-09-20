@@ -99,7 +99,7 @@ void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points) {
     transformBase = scalemat*translation;
 
     QMatrix4x4 proj;
-    proj.ortho(-2, 2, -2, 2, -10, 100);
+    proj.ortho(-1.2, 1.2, -1.2, 1.2, -10, 100);
 
     QMatrix4x4 transform0;
     transform0.lookAt(QVector3D(1,0,0), QVector3D(0,0,0), QVector3D(0,0,1));
@@ -208,10 +208,15 @@ void PointsDisplayWidget::resizeGL(int w, int h) {
     int whalf = w/2;
     int hhalf = h/2;
 
-    _viewViewports[0] = QRect(0, 0, whalf, hhalf);
-    _viewViewports[1] = QRect(whalf, hhalf, whalf, hhalf);
-    _viewViewports[2] = QRect(0, hhalf, whalf, hhalf);
-    _viewViewports[3] = QRect(whalf, 0, whalf, hhalf);
+    int min = std::min(whalf, hhalf);
+
+    int delta_w = (whalf - min)/2;
+    int delta_h = (hhalf - min)/2;
+
+    _viewViewports[0] = QRect(delta_w, delta_h, min, min);
+    _viewViewports[1] = QRect(whalf+delta_w, hhalf+delta_h, min, min);
+    _viewViewports[2] = QRect(delta_w, hhalf+delta_h, min, min);
+    _viewViewports[3] = QRect(whalf+delta_w, delta_h, min, min);
     _fullViewport = QRect(0, 0, w, h);
 
 }
