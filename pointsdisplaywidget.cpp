@@ -25,7 +25,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 PointsDisplayWidget::PointsDisplayWidget(QWidget *parent)
     : QOpenGLWidget(parent),
-      _n_points(0)
+      _n_points(0),
+      _displayColors(true)
 {
 
     _viewViewports.resize(4);
@@ -33,9 +34,10 @@ PointsDisplayWidget::PointsDisplayWidget(QWidget *parent)
 
 }
 
-void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points) {
+void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points, QVector<QColor> const& colors) {
 
     _data.resize(points.size()*3);
+    _color.resize(points.size()*3);
 
     float minX = points[0].x();
     float maxX = points[0].x();
@@ -51,6 +53,20 @@ void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points) {
         _data[i*3] = points[i].x();
         _data[i*3+1] = points[i].y();
         _data[i*3+2] = points[i].z();
+
+        if (colors.size() > i) {
+
+            _color[i*3] = colors[i].redF();
+            _color[i*3+1] = colors[i].greenF();
+            _color[i*3+2] = colors[i].blueF();
+
+        } else {
+
+            _color[i*3] = 0;
+            _color[i*3+1] = 0;
+            _color[i*3+2] = 0;
+
+        }
 
         if (minX > points[i].x()) {
             minX = points[i].x();
@@ -134,6 +150,10 @@ PointsDisplayWidget::~PointsDisplayWidget() {
     if (_lm_pos_buffer.isCreated()) {
         _lm_pos_buffer.destroy();
     }
+
+    if (_lm_col_buffer.isCreated()) {
+        _lm_col_buffer.destroy();
+    }
     _scene_vao.destroy();
 
     doneCurrent();
@@ -153,6 +173,9 @@ void PointsDisplayWidget::initializeGL() {
 
     _lm_pos_buffer.create();
     _lm_pos_buffer.setUsagePattern(QOpenGLBuffer::DynamicDraw);
+
+    _lm_col_buffer.create();
+    _lm_col_buffer.setUsagePattern(QOpenGLBuffer::DynamicDraw);
 
     _landMarkPointProgram = new QOpenGLShaderProgram();
     _landMarkPointProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/viewPersp.vert");
@@ -175,15 +198,25 @@ void PointsDisplayWidget::paintGL() {
 
     if (_needToLoad) {
         _lm_pos_buffer.allocate(_data.data(), _data.size()*sizeof (GLfloat));
-        _needToLoad = false;
     }
 
     int vertexLocation = _landMarkPointProgram->attributeLocation("in_location");
     _landMarkPointProgram->enableAttributeArray(vertexLocation);
     _landMarkPointProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3);
+    _lm_col_buffer.bind();
+
+    if (_needToLoad) {
+        _lm_col_buffer.allocate(_color.data(), _color.size()*sizeof (GLfloat));
+        _needToLoad = false;
+    }
+
+    int colorLocation = _landMarkPointProgram->attributeLocation("in_color");
+    _landMarkPointProgram->enableAttributeArray(colorLocation);
+    _landMarkPointProgram->setAttributeBuffer(colorLocation, GL_FLOAT, 0, 3);
 
     _landMarkPointProgram->setUniformValue("minZ", _min_z);
     _landMarkPointProgram->setUniformValue("maxZ", _max_z);
+    _landMarkPointProgram->setUniformValue("displayPointsColor", _displayColors);
 
     for (int i = 0; i < 4; i++) {
 
@@ -197,6 +230,7 @@ void PointsDisplayWidget::paintGL() {
 
     _scene_vao.release();
     _lm_pos_buffer.release();
+    _lm_col_buffer.release();
 
     _landMarkPointProgram->disableAttributeArray(vertexLocation);
     _landMarkPointProgram->release();
@@ -225,4 +259,15 @@ void PointsDisplayWidget::resizeGL(int w, int h) {
     _viewViewports[3] = QRect(whalf+delta_w, delta_h, min, min);
     _fullViewport = QRect(0, 0, w, h);
 
+}
+
+bool PointsDisplayWidget::displayColors() const
+{
+    return _displayColors;
+}
+
+void PointsDisplayWidget::displayColors(bool displayColors)
+{
+    _displayColors = displayColors;
+    update();
 }

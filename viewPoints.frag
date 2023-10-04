@@ -1,9 +1,17 @@
 #version 150
 
+uniform bool displayPointsColor;
+
 in float heightProp;
+in vec4 pointCol;
 
 void main(void)
 {
+    if (displayPointsColor) {
+        gl_FragColor = pointCol;
+        return;
+    }
+
     vec4 color1 = vec4(0.0, 0.1, 0.9, 1.0);
     vec4 color2 = vec4(0.9, 0.9, 0.0, 1.0);
     vec4 color3 = vec4(0.9, 0.0, 0.1, 1.0);

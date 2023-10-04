@@ -32,7 +32,10 @@ public:
     explicit PointsDisplayWidget(QWidget *parent = nullptr);
     ~PointsDisplayWidget();
 
-    void setPoints(QVector<QVector3D> const& points);
+    void setPoints(QVector<QVector3D> const& points, const QVector<QColor> &colors);
+
+    bool displayColors() const;
+    void displayColors(bool displayColors);
 
 Q_SIGNALS:
 
@@ -46,17 +49,21 @@ protected:
     float _min_z;
     float _max_z;
     std::vector<GLfloat> _data;
+    std::vector<GLfloat> _color;
     bool _needToLoad;
 
     QOpenGLVertexArrayObject _scene_vao;
 
     QOpenGLBuffer _lm_pos_buffer;
+    QOpenGLBuffer _lm_col_buffer;
 
     QOpenGLShaderProgram* _landMarkPointProgram;
 
     QVector<QRect> _viewViewports;
     QRect _fullViewport;
     QVector<QMatrix4x4> _viewProjections;
+
+    bool _displayColors;
 
 };
 

@@ -179,8 +179,8 @@ int main(int argc, char** argv) {
     });
 
     mw.setPossibleLabels(classes);
-    //mw.openPointCloud(folder.filePath(currentFile));
-    mw.openDefaultPointCloud();
+    mw.openPointCloud(folder.filePath(currentFile));
+    //mw.openDefaultPointCloud();
 
     mw.show();
 
