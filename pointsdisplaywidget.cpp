@@ -102,7 +102,7 @@ void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points) {
     transformBase = scalemat*translation;
 
     QMatrix4x4 proj;
-    proj.ortho(-1.2, 1.2, -1.2, 1.2, -10, 100);
+    proj.ortho(-1.0, 1.0, -1.0, 1.0, -10, 100);
 
     QMatrix4x4 transform0;
     transform0.lookAt(QVector3D(1,0,0), QVector3D(0,0,0), QVector3D(0,0,1));
