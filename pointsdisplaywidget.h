@@ -43,6 +43,8 @@ protected:
     void resizeGL(int w, int h) override;
 
     int _n_points;
+    float _min_z;
+    float _max_z;
     std::vector<GLfloat> _data;
     bool _needToLoad;
 

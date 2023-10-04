@@ -77,6 +77,9 @@ void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points) {
         }
     }
 
+    _min_z = minZ;
+    _max_z = maxZ;
+
     _n_points = points.size();
 
     _needToLoad = true;
@@ -178,6 +181,9 @@ void PointsDisplayWidget::paintGL() {
     int vertexLocation = _landMarkPointProgram->attributeLocation("in_location");
     _landMarkPointProgram->enableAttributeArray(vertexLocation);
     _landMarkPointProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3);
+
+    _landMarkPointProgram->setUniformValue("minZ", _min_z);
+    _landMarkPointProgram->setUniformValue("maxZ", _max_z);
 
     for (int i = 0; i < 4; i++) {
 
