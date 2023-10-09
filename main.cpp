@@ -59,6 +59,11 @@ int main(int argc, char** argv) {
     QStringList arguments = app.arguments();
     parser.process(arguments);
 
+    if (parser.positionalArguments().size() != 1) {
+        err << "SimplePointsCloudLabeler takes one and only one positional argument: the input folder" << Qt::endl;
+        return 1;
+    }
+
     QString folderPath = parser.positionalArguments()[0];
     QDir folder(folderPath);
 
