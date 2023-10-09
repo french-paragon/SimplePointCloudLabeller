@@ -1,0 +1,9 @@
+[Desktop Entry]
+
+Type=Application
+Name=SimplePointCloudLabeller
+Comment=Quickly label points cloud into classes
+Exec=simplePointCloudLabeller
+Terminal=false
+Categories=Development
+Icon=simplePointCloudLabeller
