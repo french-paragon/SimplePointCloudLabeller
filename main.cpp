@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
     parser.process(arguments);
 
     if (parser.positionalArguments().size() != 1) {
-        err << "SimplePointsCloudLabeler takes one and only one positional argument: the input folder" << Qt::endl;
+        err << "SimplePointsCloudLabeler takes one and only one positional argument: the input folder" << endl;
         return 1;
     }
 
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
     QDir folder(folderPath);
 
     if (!folder.exists()) {
-        err << "Invalid input folder: \"" << folderPath << "\""<< Qt::endl;
+        err << "Invalid input folder: \"" << folderPath << "\""<< endl;
         return 1;
     }
 
@@ -82,36 +82,36 @@ int main(int argc, char** argv) {
     }
 
     if (filesSelected.isEmpty()) {
-        err << "Could not find point cloud in input folder: \"" << folderPath << "\""<< Qt::endl;
+        err << "Could not find point cloud in input folder: \"" << folderPath << "\""<< endl;
         return 1;
     }
 
     QStringList classes = parser.values(classOption);
 
     if (classes.isEmpty()) {
-        err << "No classes provided!" << Qt::endl;
+        err << "No classes provided!" << endl;
         return 1;
     }
 
-    out << "\nList of provided classes: " << Qt::endl;
+    out << "\nList of provided classes: " << endl;
 
     for (int i = 0; i < classes.size(); i++) {
-        out << "\t" << i << ". " << classes[i] << Qt::endl;
+        out << "\t" << i << ". " << classes[i] << endl;
 
         if (!folder.exists(classes[i])) {
             bool ok = folder.mkdir(classes[i]);
 
             if (!ok) {
-                err << "Could not create class output directory: \"" << folder.filePath(classes[i]) << "\"" << Qt::endl;
+                err << "Could not create class output directory: \"" << folder.filePath(classes[i]) << "\"" << endl;
                 return 1;
             }
         }
     }
 
-    out << "\nList of files to treat: " << Qt::endl;
+    out << "\nList of files to treat: " << endl;
 
     for (int i = 0; i < filesSelected.size(); i++) {
-        out << "\t" << i << ". " << filesSelected[i] << Qt::endl;
+        out << "\t" << i << ". " << filesSelected[i] << endl;
     }
 
     MainWindow mw;
@@ -123,24 +123,24 @@ int main(int argc, char** argv) {
 
     QObject::connect(&mw, &MainWindow::labelChoosen, [&currentFile, &filesSelected, &classes, &folder, &mw, &out, &err] (int id) -> void {
        QString label = classes[id];
-       out << "Label: " << label << " requested for file: " << currentFile << Qt::endl;
+       out << "Label: " << label << " requested for file: " << currentFile << endl;
 
        QDir labelDir = folder.filePath(label);
 
        QFile pointCloudFile = folder.filePath(currentFile);
 
        if (!pointCloudFile.exists()) {
-           err << "File: " << currentFile << " do not exists!" << Qt::endl;
+           err << "File: " << currentFile << " do not exists!" << endl;
            return;
        }
 
        bool ok = pointCloudFile.rename(labelDir.filePath(currentFile));
 
        if (!ok) {
-           err << "File: " << currentFile << " could not be moved to: " << labelDir.filePath(currentFile) << "!" << Qt::endl;
+           err << "File: " << currentFile << " could not be moved to: " << labelDir.filePath(currentFile) << "!" << endl;
            return;
        } else {
-           out << "File: " << currentFile << " moved to: " << labelDir.filePath(currentFile) << "!" << Qt::endl;
+           out << "File: " << currentFile << " moved to: " << labelDir.filePath(currentFile) << "!" << endl;
        }
 
        currentFile = filesSelected.last();
@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
        QFile newPointCloudFile = folder.filePath(currentFile);
 
        if (!newPointCloudFile.exists()) {
-           err << "File: " << currentFile << " do not exists!" << Qt::endl;
+           err << "File: " << currentFile << " do not exists!" << endl;
            return;
        }
 
@@ -158,12 +158,12 @@ int main(int argc, char** argv) {
     });
 
     QObject::connect(&mw, &MainWindow::moveToNext, [&currentFile, &filesSelected, &classes, &folder, &mw, &out, &err] () -> void {
-       out << "Skip requested for file: " << currentFile << Qt::endl;
+       out << "Skip requested for file: " << currentFile << endl;
 
        QFile pointCloudFile = folder.filePath(currentFile);
 
        if (!pointCloudFile.exists()) {
-           err << "File: " << currentFile << " do not exists!" << Qt::endl;
+           err << "File: " << currentFile << " do not exists!" << endl;
            return;
        }
 
@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
        QFile newPointCloudFile = folder.filePath(currentFile);
 
        if (!newPointCloudFile.exists()) {
-           err << "File: " << currentFile << " do not exists!" << Qt::endl;
+           err << "File: " << currentFile << " do not exists!" << endl;
            return;
        }
 
