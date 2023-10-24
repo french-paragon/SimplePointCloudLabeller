@@ -21,6 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
 
+#include <QPainter>
+
 #include <cmath>
 
 PointsDisplayWidget::PointsDisplayWidget(QWidget *parent)
@@ -30,7 +32,9 @@ PointsDisplayWidget::PointsDisplayWidget(QWidget *parent)
 {
 
     _viewViewports.resize(4);
+    _paintersViewports.resize(4);
     _viewProjections.resize(4);
+    _viewNames.resize(4);
 
 }
 
@@ -115,6 +119,8 @@ void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points, QVector<QC
     QMatrix4x4 scalemat;
     scalemat.scale(scale);
 
+    _inv_scale = 1./scale;
+
     transformBase = scalemat*translation;
 
     QMatrix4x4 proj;
@@ -123,18 +129,22 @@ void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points, QVector<QC
     QMatrix4x4 transform0;
     transform0.lookAt(QVector3D(1,0,0), QVector3D(0,0,0), QVector3D(0,0,1));
     _viewProjections[0] = proj*transform0*transformBase;
+    _viewNames[0] = "Front";
 
     QMatrix4x4 transform1;
     transform1.lookAt(QVector3D(0,1,0), QVector3D(0,0,0), QVector3D(0,0,1));
     _viewProjections[1] = proj*transform1*transformBase;
+    _viewNames[1] = "Side";
 
     QMatrix4x4 transform2;
     transform2.lookAt(QVector3D(0,0,1), QVector3D(0,0,0), QVector3D(0,1,0));
     _viewProjections[2] = proj*transform2*transformBase;
+    _viewNames[2] = "Top";
 
     QMatrix4x4 transform3;
     transform3.lookAt(QVector3D(1,1,1), QVector3D(0,0,0), QVector3D(0,0,1));
     _viewProjections[3] = proj*transform3*transformBase;
+    _viewNames[3] = "Angle";
 
     update();
 }
@@ -185,6 +195,10 @@ void PointsDisplayWidget::initializeGL() {
 }
 
 void PointsDisplayWidget::paintGL() {
+
+    QPainter painter(this);
+
+    painter.beginNativePainting();
 
     QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
 
@@ -241,6 +255,79 @@ void PointsDisplayWidget::paintGL() {
                   _fullViewport.width(),
                   _fullViewport.height());
 
+    painter.endNativePainting();
+
+    constexpr int marginDelta = 22;
+    constexpr int smlMarginDelta = 5;
+
+    QFont font = painter.font();
+
+    QFontMetrics metric(font);
+
+    for (int i = 0; i < 4; i++) {
+
+        font.setPointSize(8);
+        painter.setFont(font);
+
+        QRect v = _paintersViewports[i];
+        QRect shrinked = v.marginsRemoved(QMargins(marginDelta, marginDelta, marginDelta, marginDelta));
+
+        QRect box = metric.boundingRect(_viewNames[i]);
+
+        double delta = shrinked.width() - box.width();
+
+        QPoint textStart = shrinked.topLeft();
+        textStart.rx() += delta;
+        textStart.ry() += box.height();
+
+        painter.drawText(textStart, _viewNames[i]);
+
+        if (_viewNames[i] != "Angle") {
+
+            QPoint origin = shrinked.bottomLeft();
+            QPoint yAxis = shrinked.topLeft();
+            QPoint xAxis = shrinked.bottomRight();
+
+            QPoint xLimTop = xAxis;
+            xLimTop.ry() -= smlMarginDelta;
+
+            QPoint xLimBottom = xAxis;
+            xLimBottom.ry() += smlMarginDelta;
+
+            QPoint yLimTop = yAxis;
+            yLimTop.rx() -= smlMarginDelta;
+
+            QPoint yLimBottom = yAxis;
+            yLimBottom.rx() += smlMarginDelta;
+
+            painter.drawLine(origin, xAxis);
+            painter.drawLine(xLimTop, xLimBottom);
+
+            painter.drawLine(origin, yAxis);
+            painter.drawLine(yLimTop, yLimBottom);
+
+            if (_viewNames[i] == "Top") {
+                QString length = QString("%1 pc length unit").arg(_inv_scale, 0, 'f', 2);
+
+                font.setPointSize(8);
+                painter.setFont(font);
+
+                QFontMetrics metric(font);
+
+                box = metric.boundingRect(length);
+
+                QPoint lengthOrigin = origin;
+                lengthOrigin.ry() += 1 + box.height();
+                lengthOrigin.rx() += shrinked.width()/2 - box.width()/2;
+
+                painter.drawText(lengthOrigin, length);
+            }
+
+        }
+
+    }
+
+
 }
 
 void PointsDisplayWidget::resizeGL(int w, int h) {
@@ -258,6 +345,11 @@ void PointsDisplayWidget::resizeGL(int w, int h) {
     _viewViewports[2] = QRect(delta_w, hhalf+delta_h, min, min);
     _viewViewports[3] = QRect(whalf+delta_w, delta_h, min, min);
     _fullViewport = QRect(0, 0, w, h);
+
+    _paintersViewports[0] = _viewViewports[2];
+    _paintersViewports[1] = _viewViewports[3];
+    _paintersViewports[2] = _viewViewports[0];
+    _paintersViewports[3] = _viewViewports[1];
 
 }
 

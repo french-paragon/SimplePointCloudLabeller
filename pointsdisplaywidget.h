@@ -60,8 +60,12 @@ protected:
     QOpenGLShaderProgram* _landMarkPointProgram;
 
     QVector<QRect> _viewViewports;
+    QVector<QRect> _paintersViewports;
     QRect _fullViewport;
     QVector<QMatrix4x4> _viewProjections;
+    QVector<QString> _viewNames;
+
+    float _inv_scale;
 
     bool _displayColors;
 
