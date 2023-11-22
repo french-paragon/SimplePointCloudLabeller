@@ -86,11 +86,19 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    QStringList reservedClasses{".skipped_clouds"};
     QStringList classes = parser.values(classOption);
 
     if (classes.isEmpty()) {
         err << "No classes provided!" << endl;
         return 1;
+    }
+
+    for (QString const& c : classes) {
+        if (reservedClasses.contains(c)) {
+            err << "Class " << c << " is a reserved class name!" << endl;
+            return 1;
+        }
     }
 
     out << "\nList of provided classes: " << endl;
@@ -103,6 +111,18 @@ int main(int argc, char** argv) {
 
             if (!ok) {
                 err << "Could not create class output directory: \"" << folder.filePath(classes[i]) << "\"" << endl;
+                return 1;
+            }
+        }
+    }
+
+    for (int i = 0; i < reservedClasses.size(); i++) {
+
+        if (!folder.exists(reservedClasses[i])) {
+            bool ok = folder.mkdir(reservedClasses[i]);
+
+            if (!ok) {
+                err << "Could not create class output directory: \"" << folder.filePath(reservedClasses[i]) << "\"" << endl;
                 return 1;
             }
         }
@@ -167,7 +187,21 @@ int main(int argc, char** argv) {
            return;
        }
 
-       filesSelected.push_front(currentFile);
+       QDir outDir = folder.filePath(".skipped_clouds");
+
+       if (!pointCloudFile.exists()) {
+           err << "File: " << currentFile << " do not exists!" << endl;
+           return;
+       }
+
+       bool ok = pointCloudFile.rename(outDir.filePath(currentFile));
+
+       if (!ok) {
+           err << "File: " << currentFile << " could not be moved to: " << outDir.filePath(currentFile) << "!" << endl;
+           return;
+       } else {
+           out << "File: " << currentFile << " moved to: " << outDir.filePath(currentFile) << "!" << endl;
+       }
 
        currentFile = filesSelected.last();
        filesSelected.pop_back();
