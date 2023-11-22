@@ -26,6 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QVector3D>
 #include <QSurfaceFormat>
 
+#include <chrono>
+
 #include "mainwindow.h"
 
 int main(int argc, char** argv) {
@@ -48,13 +50,18 @@ int main(int argc, char** argv) {
 
     QString targetFolderArgName = "target_folder";
     QString classesArgName = "classes";
+    QString noTimingArgName = "noTiming";
 
     QCommandLineOption classOption(QStringList{"c", classesArgName});
     classOption.setDescription("Possible classes, once per invocation of the option");
     classOption.setValueName("class");
 
+    QCommandLineOption noTimingOption(QStringList{"t", noTimingArgName});
+    noTimingOption.setDescription("Disable timing of the session.");
+
     parser.addPositionalArgument(targetFolderArgName, "Folder where the targets points cloud are located");
     parser.addOption(classOption);
+    parser.addOption(noTimingOption);
 
     QStringList arguments = app.arguments();
     parser.process(arguments);
@@ -128,6 +135,10 @@ int main(int argc, char** argv) {
         }
     }
 
+    bool timing = !parser.isSet(noTimingOption);
+    int nLabeledElements = 0;
+    int nSkippedElements = 0;
+
     out << "\nList of files to treat: " << endl;
 
     for (int i = 0; i < filesSelected.size(); i++) {
@@ -141,7 +152,7 @@ int main(int argc, char** argv) {
     QString currentFile = filesSelected.last();
     filesSelected.pop_back();
 
-    QObject::connect(&mw, &MainWindow::labelChoosen, [&currentFile, &filesSelected, &classes, &folder, &mw, &out, &err] (int id) -> void {
+    QObject::connect(&mw, &MainWindow::labelChoosen, [&currentFile, &filesSelected, &classes, &folder, &mw, &out, &err, &nLabeledElements] (int id) -> void {
        QString label = classes[id];
        out << "Label: " << label << " requested for file: " << currentFile << endl;
 
@@ -163,6 +174,8 @@ int main(int argc, char** argv) {
            out << "File: " << currentFile << " moved to: " << labelDir.filePath(currentFile) << "!" << endl;
        }
 
+       nLabeledElements++;
+
        currentFile = filesSelected.last();
        filesSelected.pop_back();
 
@@ -177,7 +190,7 @@ int main(int argc, char** argv) {
 
     });
 
-    QObject::connect(&mw, &MainWindow::moveToNext, [&currentFile, &filesSelected, &classes, &folder, &mw, &out, &err] () -> void {
+    QObject::connect(&mw, &MainWindow::moveToNext, [&currentFile, &filesSelected, &classes, &folder, &mw, &out, &err, &nSkippedElements] () -> void {
        out << "Skip requested for file: " << currentFile << endl;
 
        QFile pointCloudFile = folder.filePath(currentFile);
@@ -203,6 +216,8 @@ int main(int argc, char** argv) {
            out << "File: " << currentFile << " moved to: " << outDir.filePath(currentFile) << "!" << endl;
        }
 
+       nSkippedElements++;
+
        currentFile = filesSelected.last();
        filesSelected.pop_back();
 
@@ -223,6 +238,22 @@ int main(int argc, char** argv) {
 
     mw.show();
 
-    return app.exec();
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    int code = app.exec();
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+
+    if (timing) {
+
+        out << "\n" << "Timing infos" << "\n\n";
+
+        auto duration_s = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime);
+        out << "Labelling session time: " << duration_s.count() << "s" << "\n";
+        out << "Labelled instances: " << nLabeledElements << " instances" << "\n";
+        out << "Skipped instances: " << nSkippedElements << " instances" << endl;
+    }
+
+    return code;
 
 }
