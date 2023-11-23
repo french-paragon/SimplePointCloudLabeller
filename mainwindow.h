@@ -15,11 +15,13 @@ public:
     void setPossibleLabels(QStringList const& labels);
     bool openPointCloud(QString const& path);
     void openDefaultPointCloud();
+    void configureViewerMode();
 
 Q_SIGNALS:
 
     void labelChoosen(int labelId);
     void moveToNext();
+    void navigate(int delta);
 
 protected:
 

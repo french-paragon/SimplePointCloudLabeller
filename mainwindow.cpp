@@ -92,6 +92,35 @@ void MainWindow::setPossibleLabels(QStringList const& labels) {
     _labelButtonLayout->addWidget(button);
 
 }
+void MainWindow::configureViewerMode() {
+
+    QLayoutItem* item;
+    while ( ( item = _labelButtonLayout->takeAt( 0 ) ) != nullptr ) {
+        delete item->widget();
+        delete item;
+    }
+
+    QPushButton* previous = new QPushButton(this);
+
+    previous->setText("Previous");
+
+    connect(previous, &QPushButton::clicked, this, [this] () {
+        Q_EMIT navigate(-1);
+    });
+
+    _labelButtonLayout->addWidget(previous);
+
+    QPushButton* next = new QPushButton(this);
+
+    next->setText("Next");
+
+    connect(next, &QPushButton::clicked, this, [this] () {
+        Q_EMIT navigate(1);
+    });
+
+    _labelButtonLayout->addWidget(next);
+
+}
 
 template<uint8_t type>
 float getFieldValue(void* ptr) {

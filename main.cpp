@@ -51,6 +51,7 @@ int main(int argc, char** argv) {
     QString targetFolderArgName = "target_folder";
     QString classesArgName = "classes";
     QString noTimingArgName = "noTiming";
+    QString viewerModeArgName = "viewerMode";
 
     QCommandLineOption classOption(QStringList{"c", classesArgName});
     classOption.setDescription("Possible classes, once per invocation of the option");
@@ -59,9 +60,13 @@ int main(int argc, char** argv) {
     QCommandLineOption noTimingOption(QStringList{"t", noTimingArgName});
     noTimingOption.setDescription("Disable timing of the session.");
 
+    QCommandLineOption viewerModeOption(QStringList{"v", viewerModeArgName});
+    noTimingOption.setDescription("Open the prog in viewer mode (just explore a folder rather than labelling points).");
+
     parser.addPositionalArgument(targetFolderArgName, "Folder where the targets points cloud are located");
     parser.addOption(classOption);
     parser.addOption(noTimingOption);
+    parser.addOption(viewerModeOption);
 
     QStringList arguments = app.arguments();
     parser.process(arguments);
@@ -93,12 +98,19 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    bool viewerMode = parser.isSet(viewerModeOption);
+
     QStringList reservedClasses{".skipped_clouds"};
     QStringList classes = parser.values(classOption);
 
-    if (classes.isEmpty()) {
+    if (classes.isEmpty() and !viewerMode) {
         err << "No classes provided!" << endl;
         return 1;
+    }
+
+    if (viewerMode) {
+        classes.clear();
+        reservedClasses.clear();
     }
 
     for (QString const& c : classes) {
@@ -108,7 +120,9 @@ int main(int argc, char** argv) {
         }
     }
 
-    out << "\nList of provided classes: " << endl;
+    if (!viewerMode) {
+        out << "\nList of provided classes: " << endl;
+    }
 
     for (int i = 0; i < classes.size(); i++) {
         out << "\t" << i << ". " << classes[i] << endl;
@@ -139,7 +153,13 @@ int main(int argc, char** argv) {
     int nLabeledElements = 0;
     int nSkippedElements = 0;
 
-    out << "\nList of files to treat: " << endl;
+    if (!viewerMode) {
+        out << "\nList of files to treat: " << endl;
+    }
+
+    if (viewerMode) {
+        out << "\nList of files to view: " << endl;
+    }
 
     for (int i = 0; i < filesSelected.size(); i++) {
         out << "\t" << i << ". " << filesSelected[i] << endl;
@@ -150,7 +170,12 @@ int main(int argc, char** argv) {
     std::reverse(filesSelected.begin(), filesSelected.end());
 
     QString currentFile = filesSelected.last();
-    filesSelected.pop_back();
+
+    if (!viewerMode) {
+        filesSelected.pop_back();
+    }
+
+    int viewerPos = filesSelected.size()-1;
 
     QObject::connect(&mw, &MainWindow::labelChoosen, [&currentFile, &filesSelected, &classes, &folder, &mw, &out, &err, &nLabeledElements] (int id) -> void {
        QString label = classes[id];
@@ -232,7 +257,29 @@ int main(int argc, char** argv) {
 
     });
 
-    mw.setPossibleLabels(classes);
+    QObject::connect(&mw, &MainWindow::navigate, [&currentFile, &filesSelected, &viewerPos, &classes, &folder, &mw, &out, &err] (int delta) -> void {
+
+        viewerPos += delta;
+        viewerPos %= filesSelected.size();
+
+        currentFile = filesSelected[viewerPos];
+
+        QFile newPointCloudFile = folder.filePath(currentFile);
+
+        if (!newPointCloudFile.exists()) {
+            err << "File: " << currentFile << " do not exists!" << endl;
+            return;
+        }
+
+        mw.openPointCloud(folder.filePath(currentFile));
+
+    });
+
+    if (!viewerMode) {
+        mw.setPossibleLabels(classes);
+    } else {
+        mw.configureViewerMode();
+    }
     mw.openPointCloud(folder.filePath(currentFile));
     //mw.openDefaultPointCloud();
 
@@ -244,7 +291,7 @@ int main(int argc, char** argv) {
 
     auto endTime = std::chrono::high_resolution_clock::now();
 
-    if (timing) {
+    if (timing and !viewerMode) {
 
         out << "\n" << "Timing infos" << "\n\n";
 
