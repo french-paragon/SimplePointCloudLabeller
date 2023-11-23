@@ -52,6 +52,7 @@ int main(int argc, char** argv) {
     QString classesArgName = "classes";
     QString noTimingArgName = "noTiming";
     QString viewerModeArgName = "viewerMode";
+    QString correctionModeArgName = "correctionMode";
 
     QCommandLineOption classOption(QStringList{"c", classesArgName});
     classOption.setDescription("Possible classes, once per invocation of the option");
@@ -61,12 +62,16 @@ int main(int argc, char** argv) {
     noTimingOption.setDescription("Disable timing of the session.");
 
     QCommandLineOption viewerModeOption(QStringList{"v", viewerModeArgName});
-    noTimingOption.setDescription("Open the prog in viewer mode (just explore a folder rather than labelling points).");
+    viewerModeOption.setDescription("Open the prog in viewer mode (just explore a folder rather than labelling points).");
+
+    QCommandLineOption correctionModeOption(QStringList{"k", correctionModeArgName});
+    correctionModeOption.setDescription("Add a button to correct point clouds in viewer mode.");
 
     parser.addPositionalArgument(targetFolderArgName, "Folder where the targets points cloud are located");
     parser.addOption(classOption);
     parser.addOption(noTimingOption);
     parser.addOption(viewerModeOption);
+    parser.addOption(correctionModeOption);
 
     QStringList arguments = app.arguments();
     parser.process(arguments);
@@ -99,6 +104,7 @@ int main(int argc, char** argv) {
     }
 
     bool viewerMode = parser.isSet(viewerModeOption);
+    bool correctionMode = parser.isSet(correctionModeOption);
 
     QStringList reservedClasses{".skipped_clouds"};
     QStringList classes = parser.values(classOption);
@@ -259,7 +265,50 @@ int main(int argc, char** argv) {
 
     QObject::connect(&mw, &MainWindow::navigate, [&currentFile, &filesSelected, &viewerPos, &classes, &folder, &mw, &out, &err] (int delta) -> void {
 
-        viewerPos += delta;
+        viewerPos -= delta;
+        viewerPos %= filesSelected.size();
+
+        currentFile = filesSelected[viewerPos];
+
+        QFile newPointCloudFile = folder.filePath(currentFile);
+
+        if (!newPointCloudFile.exists()) {
+            err << "File: " << currentFile << " do not exists!" << endl;
+            return;
+        }
+
+        mw.openPointCloud(folder.filePath(currentFile));
+
+    });
+
+    QObject::connect(&mw, &MainWindow::requestLabelCorrection, [&currentFile, &filesSelected, &viewerPos, &classes, &folder, &mw, &out, &err] () -> void {
+
+        out << "Correction requested for file: " << currentFile << endl;
+
+        QFile pointCloudFile = folder.filePath(currentFile);
+
+        if (!pointCloudFile.exists()) {
+            err << "File: " << currentFile << " do not exists!" << endl;
+            return;
+        }
+
+        QDir outDir = folder.filePath("..");
+
+        if (!pointCloudFile.exists()) {
+            err << "File: " << currentFile << " do not exists!" << endl;
+            return;
+        }
+
+        bool ok = pointCloudFile.rename(outDir.filePath(currentFile));
+
+        if (!ok) {
+            err << "File: " << currentFile << " could not be moved to: " << outDir.filePath(currentFile) << "!" << endl;
+            return;
+        } else {
+            out << "File: " << currentFile << " moved to: " << outDir.filePath(currentFile) << "!" << endl;
+        }
+
+        filesSelected.removeAt(viewerPos);
         viewerPos %= filesSelected.size();
 
         currentFile = filesSelected[viewerPos];
@@ -278,7 +327,7 @@ int main(int argc, char** argv) {
     if (!viewerMode) {
         mw.setPossibleLabels(classes);
     } else {
-        mw.configureViewerMode();
+        mw.configureViewerMode(correctionMode);
     }
     mw.openPointCloud(folder.filePath(currentFile));
     //mw.openDefaultPointCloud();

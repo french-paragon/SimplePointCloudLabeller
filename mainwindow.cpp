@@ -92,7 +92,7 @@ void MainWindow::setPossibleLabels(QStringList const& labels) {
     _labelButtonLayout->addWidget(button);
 
 }
-void MainWindow::configureViewerMode() {
+void MainWindow::configureViewerMode(bool withCorrections) {
 
     QLayoutItem* item;
     while ( ( item = _labelButtonLayout->takeAt( 0 ) ) != nullptr ) {
@@ -119,6 +119,20 @@ void MainWindow::configureViewerMode() {
     });
 
     _labelButtonLayout->addWidget(next);
+
+    if (withCorrections) {
+
+        QPushButton* correct = new QPushButton(this);
+
+        correct->setText("Correct");
+
+        connect(correct, &QPushButton::clicked, this, [this] () {
+            Q_EMIT requestLabelCorrection();
+        });
+
+        _labelButtonLayout->addWidget(correct);
+
+    }
 
 }
 
