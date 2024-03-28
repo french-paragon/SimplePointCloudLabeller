@@ -4,6 +4,7 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QComboBox>
+#include <QFileInfo>
 
 #include "pointsdisplaywidget.h"
 
@@ -56,6 +57,7 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags) :
     setCentralWidget(centralWidget);
 
     resize(900, 600);
+    setWindowTitle(tr("Simple Point Cloud Labeler"));
 }
 
 void MainWindow::setPossibleLabels(QStringList const& labels) {
@@ -263,6 +265,12 @@ float colorScaleFromType(uint8_t type) {
 }
 
 bool MainWindow::openPointCloud(QString const& path) {
+
+    QFileInfo infos(path);
+
+    QString baseName = infos.baseName();
+
+    setWindowTitle(tr("Simple Point Cloud Labeler - ") + baseName);
 
     pcl::PCLPointCloud2 cloud;
 
