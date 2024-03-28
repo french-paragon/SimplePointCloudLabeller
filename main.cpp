@@ -73,6 +73,8 @@ int main(int argc, char** argv) {
     parser.addOption(viewerModeOption);
     parser.addOption(correctionModeOption);
 
+    parser.addHelpOption();
+
     QStringList arguments = app.arguments();
     parser.process(arguments);
 
