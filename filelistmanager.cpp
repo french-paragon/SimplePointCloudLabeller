@@ -1,6 +1,8 @@
 #include "filelistmanager.h"
 
 #include <QTextStream>
+#include <algorithm>
+#include <random>
 
 FileListManager::FileListManager() :
     FileListManager(QDir(),"","")
@@ -173,6 +175,7 @@ bool FileListManager::loadDataFromConfigurationFile(QString const& altConfigurat
             }
         }
 
+        randomizeOrder();
         return true;
     }
 
@@ -199,6 +202,24 @@ bool FileListManager::loadDataFromConfigurationFile(QString const& altConfigurat
 
     }
 
+    randomizeOrder();
     return true;
 
+}
+
+void FileListManager::randomizeOrder() {
+
+
+    QStringList keys = _classifications.keys();
+
+    std::random_device rd;
+    std::default_random_engine re;
+    re.seed(rd());
+
+    for (QString const& key : qAsConst(keys)) {
+        std::random_shuffle(_classifications[key].begin(), _classifications[key].end(), [&re] (int n) {
+            return std::uniform_int_distribution(0,n)(re);
+        }
+        );
+    }
 }

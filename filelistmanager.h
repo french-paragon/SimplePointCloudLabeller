@@ -35,6 +35,8 @@ public:
 
 protected:
 
+    void randomizeOrder();
+
     QDir _currentDir;
     QString _configurationFile;
     QMap<QString,QStringList> _classifications;
