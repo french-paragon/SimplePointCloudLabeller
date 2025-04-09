@@ -25,6 +25,7 @@ set(PROJ_SRC  main.cpp
     ressources.qrc
     pointsdisplaywidget.h pointsdisplaywidget.cpp
     mainwindow.h mainwindow.cpp
+    filelistmanager.h filelistmanager.cpp
     )
 
 add_executable(simplePointCloudLabeller

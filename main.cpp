@@ -25,10 +25,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <QVector3D>
 #include <QSurfaceFormat>
+#include <QMessageBox>
 
 #include <chrono>
 
 #include "mainwindow.h"
+#include "filelistmanager.h"
 
 int main(int argc, char** argv) {
 
@@ -79,7 +81,7 @@ int main(int argc, char** argv) {
     parser.process(arguments);
 
     if (parser.positionalArguments().size() != 1) {
-        err << "SimplePointsCloudLabeler takes one and only one positional argument: the input folder" << endl;
+        err << "SimplePointsCloudLabeler takes one and only one positional argument: the input folder" << Qt::endl;
         return 1;
     }
 
@@ -87,32 +89,26 @@ int main(int argc, char** argv) {
     QDir folder(folderPath);
 
     if (!folder.exists()) {
-        err << "Invalid input folder: \"" << folderPath << "\""<< endl;
+        err << "Invalid input folder: \"" << folderPath << "\""<< Qt::endl;
         return 1;
     }
 
-    QStringList files = folder.entryList();
-    QStringList filesSelected;
 
-    for (QString const& file : files) {
-        if (file.endsWith(".pcd", Qt::CaseInsensitive)) {
-            filesSelected << file;
-        }
-    }
+    FileListManager fileListManager(folder);
 
-    if (filesSelected.isEmpty()) {
-        err << "Could not find point cloud in input folder: \"" << folderPath << "\""<< endl;
+    if (fileListManager.isEmpty()) {
+        err << "Could not find point cloud for input folder: \"" << folderPath << "\""<< Qt::endl;
         return 1;
     }
 
     bool viewerMode = parser.isSet(viewerModeOption);
     bool correctionMode = parser.isSet(correctionModeOption);
 
-    QStringList reservedClasses{".skipped_clouds"};
+    QStringList reservedClasses{FileListManager::noClassLabel, FileListManager::skippedClassLabel};
     QStringList classes = parser.values(classOption);
 
     if (classes.isEmpty() and !viewerMode) {
-        err << "No classes provided!" << endl;
+        err << "No classes provided!" << Qt::endl;
         return 1;
     }
 
@@ -123,38 +119,17 @@ int main(int argc, char** argv) {
 
     for (QString const& c : classes) {
         if (reservedClasses.contains(c)) {
-            err << "Class " << c << " is a reserved class name!" << endl;
+            err << "Class " << c << " is a reserved class name!" << Qt::endl;
             return 1;
         }
     }
 
     if (!viewerMode) {
-        out << "\nList of provided classes: " << endl;
+        out << "\nList of provided classes: " << Qt::endl;
     }
 
     for (int i = 0; i < classes.size(); i++) {
-        out << "\t" << i << ". " << classes[i] << endl;
-
-        if (!folder.exists(classes[i])) {
-            bool ok = folder.mkdir(classes[i]);
-
-            if (!ok) {
-                err << "Could not create class output directory: \"" << folder.filePath(classes[i]) << "\"" << endl;
-                return 1;
-            }
-        }
-    }
-
-    for (int i = 0; i < reservedClasses.size(); i++) {
-
-        if (!folder.exists(reservedClasses[i])) {
-            bool ok = folder.mkdir(reservedClasses[i]);
-
-            if (!ok) {
-                err << "Could not create class output directory: \"" << folder.filePath(reservedClasses[i]) << "\"" << endl;
-                return 1;
-            }
-        }
+        out << "\t" << i << ". " << classes[i] << Qt::endl;
     }
 
     bool timing = !parser.isSet(noTimingOption);
@@ -162,167 +137,79 @@ int main(int argc, char** argv) {
     int nSkippedElements = 0;
 
     if (!viewerMode) {
-        out << "\nList of files to treat: " << endl;
+        out << "\nList of files to treat: " << Qt::endl;
     }
 
     if (viewerMode) {
-        out << "\nList of files to view: " << endl;
+        out << "\nList of files to view: " << Qt::endl;
     }
 
-    for (int i = 0; i < filesSelected.size(); i++) {
-        out << "\t" << i << ". " << filesSelected[i] << endl;
+    for (int i = 0; i < fileListManager.nFiles(); i++) {
+        fileListManager.setCurrentIndex(i);
+        out << "\t" << i << ". " << fileListManager.currentFilePath() << Qt::endl;
     }
 
     MainWindow mw;
 
-    std::reverse(filesSelected.begin(), filesSelected.end());
-
-    QString currentFile = filesSelected.last();
-
-    if (!viewerMode) {
-        filesSelected.pop_back();
-    }
-
-    int viewerPos = filesSelected.size()-1;
-
-    QObject::connect(&mw, &MainWindow::labelChoosen, [&currentFile, &filesSelected, &classes, &folder, &mw, &out, &err, &nLabeledElements] (int id) -> void {
+    QObject::connect(&mw, &MainWindow::labelChoosen, [&fileListManager, &classes, &folder, &mw, &out, &err, &nLabeledElements] (int id) -> void {
        QString label = classes[id];
-       out << "Label: " << label << " requested for file: " << currentFile << endl;
+       out << "Label: " << label << " requested for file: " << fileListManager.currentFilePath() << Qt::endl;
 
-       QDir labelDir = folder.filePath(label);
+       fileListManager.classifyCurrentFile(label);
 
-       QFile pointCloudFile = folder.filePath(currentFile);
-
-       if (!pointCloudFile.exists()) {
-           err << "File: " << currentFile << " do not exists!" << endl;
-           return;
+       if (fileListManager.nFiles() == 0 and fileListManager.nInClass(FileListManager::skippedClassLabel) > 0) {
+           fileListManager.refreshSkipped();
        }
 
-       bool ok = pointCloudFile.rename(labelDir.filePath(currentFile));
-
-       if (!ok) {
-           err << "File: " << currentFile << " could not be moved to: " << labelDir.filePath(currentFile) << "!" << endl;
-           return;
-       } else {
-           out << "File: " << currentFile << " moved to: " << labelDir.filePath(currentFile) << "!" << endl;
+       if (fileListManager.nFiles() == 0) {
+           QMessageBox::information(&mw,
+                                    QObject::tr("No more point cloud"),
+                                    QObject::tr("All file in the class have been corrected!"));
        }
 
        nLabeledElements++;
 
-       currentFile = filesSelected.last();
-       filesSelected.pop_back();
-
-       QFile newPointCloudFile = folder.filePath(currentFile);
-
-       if (!newPointCloudFile.exists()) {
-           err << "File: " << currentFile << " do not exists!" << endl;
-           return;
-       }
-
-       mw.openPointCloud(folder.filePath(currentFile));
+       mw.openPointCloud(fileListManager.currentFilePath());
 
     });
 
-    QObject::connect(&mw, &MainWindow::moveToNext, [&currentFile, &filesSelected, &classes, &folder, &mw, &out, &err, &nSkippedElements] () -> void {
-       out << "Skip requested for file: " << currentFile << endl;
+    QObject::connect(&mw, &MainWindow::moveToNext, [&fileListManager, &classes, &folder, &mw, &out, &err, &nSkippedElements] () -> void {
+       out << "Skip requested for file: " << fileListManager.currentFilePath() << Qt::endl;
 
-       QFile pointCloudFile = folder.filePath(currentFile);
+       fileListManager.classifyCurrentFile(FileListManager::skippedClassLabel);
 
-       if (!pointCloudFile.exists()) {
-           err << "File: " << currentFile << " do not exists!" << endl;
-           return;
-       }
-
-       QDir outDir = folder.filePath(".skipped_clouds");
-
-       if (!pointCloudFile.exists()) {
-           err << "File: " << currentFile << " do not exists!" << endl;
-           return;
-       }
-
-       bool ok = pointCloudFile.rename(outDir.filePath(currentFile));
-
-       if (!ok) {
-           err << "File: " << currentFile << " could not be moved to: " << outDir.filePath(currentFile) << "!" << endl;
-           return;
-       } else {
-           out << "File: " << currentFile << " moved to: " << outDir.filePath(currentFile) << "!" << endl;
+       if (fileListManager.nFiles() == 0 and fileListManager.nInClass(FileListManager::skippedClassLabel) > 0) {
+           QMessageBox::information(&mw,
+                                    QObject::tr("No more point cloud"),
+                                    QObject::tr("All unclassified files in the class have been skipped!"));
+           fileListManager.refreshSkipped();
        }
 
        nSkippedElements++;
 
-       currentFile = filesSelected.last();
-       filesSelected.pop_back();
-
-       QFile newPointCloudFile = folder.filePath(currentFile);
-
-       if (!newPointCloudFile.exists()) {
-           err << "File: " << currentFile << " do not exists!" << endl;
-           return;
-       }
-
-       mw.openPointCloud(folder.filePath(currentFile));
+       mw.openPointCloud(fileListManager.currentFilePath());
 
     });
 
-    QObject::connect(&mw, &MainWindow::navigate, [&currentFile, &filesSelected, &viewerPos, &classes, &folder, &mw, &out, &err] (int delta) -> void {
+    QObject::connect(&mw, &MainWindow::navigate, [&fileListManager, &classes, &folder, &mw, &out, &err] (int delta) -> void {
 
-        viewerPos -= delta;
-        viewerPos %= filesSelected.size();
+        fileListManager.moveCurrentIndex(delta);
 
-        currentFile = filesSelected[viewerPos];
-
-        QFile newPointCloudFile = folder.filePath(currentFile);
-
-        if (!newPointCloudFile.exists()) {
-            err << "File: " << currentFile << " do not exists!" << endl;
-            return;
-        }
-
-        mw.openPointCloud(folder.filePath(currentFile));
+        mw.openPointCloud(fileListManager.currentFilePath());
 
     });
 
-    QObject::connect(&mw, &MainWindow::requestLabelCorrection, [&currentFile, &filesSelected, &viewerPos, &classes, &folder, &mw, &out, &err] () -> void {
+    QObject::connect(&mw, &MainWindow::requestLabelCorrection, [&fileListManager, &classes, &folder, &mw, &out, &err] () -> void {
 
-        out << "Correction requested for file: " << currentFile << endl;
+        fileListManager.classifyCurrentFile(FileListManager::noClassLabel);
 
-        QFile pointCloudFile = folder.filePath(currentFile);
-
-        if (!pointCloudFile.exists()) {
-            err << "File: " << currentFile << " do not exists!" << endl;
-            return;
+        if (fileListManager.nFiles() == 0) {
+            QMessageBox::information(&mw,
+                                     QObject::tr("No more point cloud"),
+                                     QObject::tr("All file in the class have been corrected!"));
         }
 
-        QDir outDir = folder.filePath("..");
-
-        if (!pointCloudFile.exists()) {
-            err << "File: " << currentFile << " do not exists!" << endl;
-            return;
-        }
-
-        bool ok = pointCloudFile.rename(outDir.filePath(currentFile));
-
-        if (!ok) {
-            err << "File: " << currentFile << " could not be moved to: " << outDir.filePath(currentFile) << "!" << endl;
-            return;
-        } else {
-            out << "File: " << currentFile << " moved to: " << outDir.filePath(currentFile) << "!" << endl;
-        }
-
-        filesSelected.removeAt(viewerPos);
-        viewerPos %= filesSelected.size();
-
-        currentFile = filesSelected[viewerPos];
-
-        QFile newPointCloudFile = folder.filePath(currentFile);
-
-        if (!newPointCloudFile.exists()) {
-            err << "File: " << currentFile << " do not exists!" << endl;
-            return;
-        }
-
-        mw.openPointCloud(folder.filePath(currentFile));
+        mw.openPointCloud(fileListManager.currentFilePath());
 
     });
 
@@ -331,7 +218,7 @@ int main(int argc, char** argv) {
     } else {
         mw.configureViewerMode(correctionMode);
     }
-    mw.openPointCloud(folder.filePath(currentFile));
+    mw.openPointCloud(fileListManager.currentFilePath());
     //mw.openDefaultPointCloud();
 
     mw.show();
@@ -349,7 +236,7 @@ int main(int argc, char** argv) {
         auto duration_s = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime);
         out << "Labelling session time: " << duration_s.count() << "s" << "\n";
         out << "Labelled instances: " << nLabeledElements << " instances" << "\n";
-        out << "Skipped instances: " << nSkippedElements << " instances" << endl;
+        out << "Skipped instances: " << nSkippedElements << " instances" << Qt::endl;
     }
 
     return code;
