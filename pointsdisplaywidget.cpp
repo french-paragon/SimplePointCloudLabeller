@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QOpenGLShaderProgram>
 
 #include <QPainter>
+#include <QMouseEvent>
 
 #include <cmath>
 
@@ -35,6 +36,9 @@ PointsDisplayWidget::PointsDisplayWidget(QWidget *parent)
     _paintersViewports.resize(4);
     _viewProjections.resize(4);
     _viewNames.resize(4);
+
+    _azimuth_angle = 45;
+    _zenith_angle = 45;
 
 }
 
@@ -97,54 +101,23 @@ void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points, QVector<QC
         }
     }
 
+    _min_x = minX;
+    _center_x = (maxX + minX)/2;
+    _max_x = maxX;
+
+    _min_y = minY;
+    _center_y = (maxY + minY)/2;
+    _max_y = maxY;
+
     _min_z = minZ;
+    _center_z = minZ;
     _max_z = maxZ;
 
     _n_points = points.size();
 
     _needToLoad = true;
 
-    QMatrix4x4 transformBase;
-
-    QMatrix4x4 translation;
-    translation.translate(QVector3D((maxX - minX)/2 - maxX,
-                                    (maxY - minY)/2 - maxY,
-                                    (maxZ - minZ)/2 - maxZ));
-
-    float scaleX = 1./std::max(maxX - minX, 0.01f);
-    float scaleY = 1./std::max(maxY - minY, 0.01f);
-    float scaleZ = 1./std::max(maxZ - minZ, 0.01f);
-
-    float scale = std::min(scaleX, std::min(scaleY, scaleZ));
-    QMatrix4x4 scalemat;
-    scalemat.scale(scale);
-
-    _inv_scale = 1./scale;
-
-    transformBase = scalemat*translation;
-
-    QMatrix4x4 proj;
-    proj.ortho(-1.0, 1.0, -1.0, 1.0, -10, 100);
-
-    QMatrix4x4 transform0;
-    transform0.lookAt(QVector3D(1,0,0), QVector3D(0,0,0), QVector3D(0,0,1));
-    _viewProjections[0] = proj*transform0*transformBase;
-    _viewNames[0] = "Front";
-
-    QMatrix4x4 transform1;
-    transform1.lookAt(QVector3D(0,1,0), QVector3D(0,0,0), QVector3D(0,0,1));
-    _viewProjections[1] = proj*transform1*transformBase;
-    _viewNames[1] = "Side";
-
-    QMatrix4x4 transform2;
-    transform2.lookAt(QVector3D(0,0,1), QVector3D(0,0,0), QVector3D(0,1,0));
-    _viewProjections[2] = proj*transform2*transformBase;
-    _viewNames[2] = "Top";
-
-    QMatrix4x4 transform3;
-    transform3.lookAt(QVector3D(1,1,1), QVector3D(0,0,0), QVector3D(0,0,1));
-    _viewProjections[3] = proj*transform3*transformBase;
-    _viewNames[3] = "Angle";
+    recomputeViews();
 
     update();
 }
@@ -174,6 +147,7 @@ void PointsDisplayWidget::initializeGL() {
 
     QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
     f->glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    f->glClearDepthf(1.0f);
     f->glEnable(GL_MULTISAMPLE);
     f->glEnable(GL_POINT_SMOOTH);
     f->glEnable(GL_PROGRAM_POINT_SIZE);
@@ -201,6 +175,10 @@ void PointsDisplayWidget::paintGL() {
     painter.beginNativePainting();
 
     QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
+    f->glEnable(GL_DEPTH_TEST);
+    f->glDepthFunc(GL_LESS);
+    f->glClear(GL_COLOR_BUFFER_BIT);
+    f->glClear(GL_DEPTH_BUFFER_BIT);
 
     if (_n_points <= 0) {
         return;
@@ -238,6 +216,7 @@ void PointsDisplayWidget::paintGL() {
         f->glViewport(v.left(), v.top(), v.width(), v.height());
 
         _landMarkPointProgram->setUniformValue("matrixViewProjection", _viewProjections[i]);
+        _landMarkPointProgram->setUniformValue("origin", QVector3D(_center_x, _center_y, _center_z));
 
         f->glDrawArrays(GL_POINTS, 0, _n_points);
     }
@@ -254,6 +233,10 @@ void PointsDisplayWidget::paintGL() {
                   _fullViewport.top(),
                   _fullViewport.width(),
                   _fullViewport.height());
+
+    //reset depth buffer
+    f->glClear(GL_DEPTH_BUFFER_BIT);
+    f->glDepthFunc(GL_ALWAYS);
 
     painter.endNativePainting();
 
@@ -353,6 +336,60 @@ void PointsDisplayWidget::resizeGL(int w, int h) {
 
 }
 
+void PointsDisplayWidget::mousePressEvent(QMouseEvent *e) {
+
+    _previously_pressed = e->buttons();
+
+    _motion_origin_pos = e->pos();
+
+    if (_previously_pressed == Qt::MiddleButton or
+            _previously_pressed == Qt::LeftButton or
+            _previously_pressed == Qt::RightButton) {
+
+        e->accept();
+    } else {
+        e->ignore();
+    }
+
+}
+void PointsDisplayWidget::mouseReleaseEvent(QMouseEvent *e) {
+
+    if (_previously_pressed == Qt::MiddleButton) {
+
+        e->ignore();
+
+    } else if (_previously_pressed == Qt::LeftButton) {
+
+        return;
+    }
+
+}
+void PointsDisplayWidget::mouseMoveEvent(QMouseEvent *e) {
+
+    int b = e->buttons();
+
+    if (b == Qt::MiddleButton) {
+        QPoint nP = e->pos();
+
+        QPoint t = nP - _motion_origin_pos;
+        _motion_origin_pos = nP;
+
+        rotateZenith(-t.y()/3.);
+        rotateAzimuth(t.x()/3.);
+
+        e->accept();
+
+    } else if (b == Qt::RightButton) {
+
+        return;
+
+    } else if (b == Qt::NoButton) {
+
+        return;
+    }
+
+}
+
 bool PointsDisplayWidget::displayColors() const
 {
     return _displayColors;
@@ -362,4 +399,94 @@ void PointsDisplayWidget::displayColors(bool displayColors)
 {
     _displayColors = displayColors;
     update();
+}
+
+void PointsDisplayWidget::rotateZenith(float degrees) {
+
+    float newAngle = _zenith_angle - degrees;
+    if (newAngle < -89) {
+        newAngle = -89;
+    } else if (newAngle > 89) {
+        newAngle = 89;
+    }
+
+    if (newAngle != _zenith_angle) {
+        _zenith_angle = newAngle;
+        recomputeViews();
+        update();
+    }
+}
+void PointsDisplayWidget::rotateAzimuth(float degrees) {
+
+    float newAngle = _azimuth_angle - degrees;
+
+    if (newAngle < 0) {
+        newAngle += (floor(fabs(newAngle)/360.) + 1)*360.;
+    } else if (newAngle > 360) {
+        newAngle -= floor(fabs(newAngle)/360.)*360.;
+    }
+
+    if (newAngle != _azimuth_angle) {
+        _azimuth_angle = newAngle;
+        recomputeViews();
+        update();
+    }
+}
+
+void PointsDisplayWidget::recomputeViews() {
+
+
+    QMatrix4x4 transformBase;
+
+    QMatrix4x4 translation;
+    translation.translate(QVector3D((_max_x - _min_x)/2 - _max_x,
+                                    (_max_y - _min_y)/2 - _max_y,
+                                    (_max_z - _min_z)/2 - _max_z));
+
+    float scaleX = 1./std::max(_max_x - _min_x, 0.01f);
+    float scaleY = 1./std::max(_max_y - _min_y, 0.01f);
+    float scaleZ = 1./std::max(_max_z - _min_z, 0.01f);
+
+    float scale = std::min(scaleX, std::min(scaleY, scaleZ));
+    QMatrix4x4 scalemat;
+    scalemat.scale(scale);
+
+    _inv_scale = 1./scale;
+
+    transformBase = scalemat*translation;
+
+    QMatrix4x4 proj;
+    proj.ortho(-1.0, 1.0, -1.0, 1.0, -10, 10);
+
+    QMatrix4x4 transform0;
+    transform0.lookAt(QVector3D(1,0,0), QVector3D(0,0,0), QVector3D(0,0,1));
+    _viewProjections[0] = proj*transform0*transformBase;
+    _viewNames[0] = "Front";
+
+    QMatrix4x4 transform1;
+    transform1.lookAt(QVector3D(0,1,0), QVector3D(0,0,0), QVector3D(0,0,1));
+    _viewProjections[1] = proj*transform1*transformBase;
+    _viewNames[1] = "Side";
+
+    QMatrix4x4 transform2;
+    transform2.lookAt(QVector3D(0,0,1), QVector3D(0,0,0), QVector3D(0,1,0));
+    _viewProjections[2] = proj*transform2*transformBase;
+    _viewNames[2] = "Top";
+
+    float cosZ = std::cos(_zenith_angle/180*M_PI);
+    float sinZ = std::sin(_zenith_angle/180*M_PI);
+    float cosA = std::cos(_azimuth_angle/180*M_PI);
+    float sinA = std::sin(_azimuth_angle/180*M_PI);
+
+    QVector3D eye(cosA*cosZ,sinA*cosZ,sinZ);
+    QVector3D up(-cosA*sinZ,-sinA*sinZ,cosZ);
+    eye *= std::sqrt(6); //set the view a bit further away than 1
+
+    QMatrix4x4 transform3;
+    transform3.lookAt(eye, QVector3D(0,0,0), up);
+
+    _viewProjections[3] = proj*transform3*transformBase;
+    _viewNames[3] = "Angle";
+
+    return;
 }

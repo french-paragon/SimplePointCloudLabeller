@@ -37,6 +37,9 @@ public:
     bool displayColors() const;
     void displayColors(bool displayColors);
 
+    void rotateZenith(float degrees);
+    void rotateAzimuth(float degrees);
+
 Q_SIGNALS:
 
 protected:
@@ -45,9 +48,24 @@ protected:
     void paintGL() override;
     void resizeGL(int w, int h) override;
 
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+
+    void recomputeViews();
+
     int _n_points;
+
+    float _min_x;
+    float _center_x;
+    float _max_x;
+    float _min_y;
+    float _center_y;
+    float _max_y;
     float _min_z;
+    float _center_z;
     float _max_z;
+
     std::vector<GLfloat> _data;
     std::vector<GLfloat> _color;
     bool _needToLoad;
@@ -65,9 +83,15 @@ protected:
     QVector<QMatrix4x4> _viewProjections;
     QVector<QString> _viewNames;
 
+    float _zenith_angle;
+    float _azimuth_angle;
+
     float _inv_scale;
 
     bool _displayColors;
+
+    Qt::MouseButtons _previously_pressed;
+    QPoint _motion_origin_pos;
 
 };
 
