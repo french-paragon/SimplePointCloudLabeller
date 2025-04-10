@@ -23,6 +23,7 @@ public:
     int nInClass(QString const classLabel) const;
     void setCurrentIndex(int idx);
     void moveCurrentIndex(int delta);
+    void setCurrentClass(QString const& label);
 
     bool isEmpty();
 

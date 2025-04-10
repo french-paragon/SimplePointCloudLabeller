@@ -93,19 +93,13 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-
-    FileListManager fileListManager(folder);
-
-    if (fileListManager.isEmpty()) {
-        err << "Could not find point cloud for input folder: \"" << folderPath << "\""<< Qt::endl;
-        return 1;
-    }
+    QStringList reservedClasses{FileListManager::noClassLabel, FileListManager::skippedClassLabel};
+    QStringList classes = parser.values(classOption);
 
     bool viewerMode = parser.isSet(viewerModeOption);
     bool correctionMode = parser.isSet(correctionModeOption);
 
-    QStringList reservedClasses{FileListManager::noClassLabel, FileListManager::skippedClassLabel};
-    QStringList classes = parser.values(classOption);
+    FileListManager fileListManager(folder);
 
     if (classes.isEmpty() and !viewerMode) {
         err << "No classes provided!" << Qt::endl;
@@ -113,8 +107,22 @@ int main(int argc, char** argv) {
     }
 
     if (viewerMode) {
+        if (classes.size() > 1) {
+            err << "Cannot view more than one class in viewer mode!" << Qt::endl;
+            return 1;
+        }
+
+        if (classes.size() == 1) {
+            fileListManager.setCurrentClass(classes[0]);
+        }
+
         classes.clear();
         reservedClasses.clear();
+    }
+
+    if (fileListManager.isEmpty()) {
+        err << "Could not find point cloud for input folder: \"" << folderPath << "\""<< Qt::endl;
+        return 1;
     }
 
     for (QString const& c : classes) {

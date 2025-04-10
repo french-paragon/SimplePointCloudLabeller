@@ -47,6 +47,14 @@ void FileListManager::moveCurrentIndex(int delta) {
     _currentIndex += delta;
     _currentIndex %= std::max(1,nFiles());
 }
+void FileListManager::setCurrentClass(QString const& label) {
+    if (_currentLabel == label) {
+        return;
+    }
+
+    _currentLabel = label;
+    _currentIndex = 0;
+}
 
 bool FileListManager::isEmpty() {
     return nFiles() == 0;
