@@ -160,7 +160,13 @@ int main(int argc, char** argv) {
     MainWindow mw;
 
     QObject::connect(&mw, &MainWindow::labelChoosen, [&fileListManager, &classes, &folder, &mw, &out, &err, &nLabeledElements] (int id) -> void {
-       QString label = classes[id];
+       QString label;
+
+       if (id >= 0 and id < classes.size()) {
+           label = classes[id];
+       } else {
+           label = FileListManager::skippedClassLabel;
+       }
        out << "Label: " << label << " requested for file: " << fileListManager.currentFilePath() << Qt::endl;
 
        fileListManager.classifyCurrentFile(label);

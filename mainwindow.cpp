@@ -7,12 +7,14 @@
 #include <QFileInfo>
 
 #include "pointsdisplaywidget.h"
+#include "filelistmanager.h"
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 
 #include <QVector>
 #include <QVector3D>
+#include <QKeyEvent>
 
 MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags) :
     QMainWindow(parent, flags)
@@ -62,6 +64,8 @@ MainWindow::MainWindow(QWidget *parent, Qt::WindowFlags flags) :
 
 void MainWindow::setPossibleLabels(QStringList const& labels) {
 
+    _possibleLabels = labels;
+
     QLayoutItem* item;
     while ( ( item = _labelButtonLayout->takeAt( 0 ) ) != nullptr ) {
         delete item->widget();
@@ -74,7 +78,7 @@ void MainWindow::setPossibleLabels(QStringList const& labels) {
 
         QPushButton* button = new QPushButton(this);
 
-        button->setText(label);
+        button->setText(QString("%1 (%2)").arg(label).arg(i+1));
 
         connect(button, &QPushButton::clicked, this, [i, this] () {
             Q_EMIT labelChoosen(i);
@@ -85,7 +89,8 @@ void MainWindow::setPossibleLabels(QStringList const& labels) {
 
     QPushButton* button = new QPushButton(this);
 
-    button->setText("Skip");
+    button->setText(QString("Skip (%1)").arg(_possibleLabels.size()+1));
+    _possibleLabels.push_back(FileListManager::skippedClassLabel);
 
     connect(button, &QPushButton::clicked, this, [this] () {
         Q_EMIT moveToNext();
@@ -136,6 +141,25 @@ void MainWindow::configureViewerMode(bool withCorrections) {
 
     }
 
+}
+
+void MainWindow::keyReleaseEvent(QKeyEvent *event) {
+
+    QVariant text = event->text();
+
+    bool ok;
+    int val = text.toInt(&ok);
+
+    if (!ok) {
+        return;
+    }
+
+    if (val >= 1 and val <= _possibleLabels.size()) {
+        Q_EMIT labelChoosen(val-1);
+        event->accept();
+    }
+
+    return;
 }
 
 template<uint8_t type>

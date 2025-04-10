@@ -26,6 +26,9 @@ Q_SIGNALS:
 
 protected:
 
+    void keyReleaseEvent(QKeyEvent *event) override;
+
+    QStringList _possibleLabels;
     PointsDisplayWidget* _displayWidget;
     QHBoxLayout* _labelButtonLayout;
 };
