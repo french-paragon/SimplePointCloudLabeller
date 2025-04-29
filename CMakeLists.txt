@@ -34,6 +34,6 @@ add_executable(simplePointCloudLabeller
 
 target_link_libraries(simplePointCloudLabeller PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Widgets ${PCL_LIBRARIES})
 
-install(TARGETS simplePointCloudLabeller RUNTIME DESTINATION usr/bin)
-install(FILES simplePointCloudLabeller.desktop DESTINATION usr/share/applications)
+install(TARGETS simplePointCloudLabeller RUNTIME DESTINATION bin)
+install(FILES simplePointCloudLabeller.desktop DESTINATION share/applications)
 install(FILES icon/simplePointCloudLabeller.png DESTINATION .)
