@@ -13,7 +13,7 @@ public:
     MainWindow(QWidget *parent = nullptr, Qt::WindowFlags flags = Qt::WindowFlags());
 
     void setPossibleLabels(QStringList const& labels);
-    bool openPointCloud(QString const& path);
+    bool openPointCloud(QString const& path, const QString &mainClusterArg = "");
     void openDefaultPointCloud();
     void configureViewerMode(bool withCorrections);
 

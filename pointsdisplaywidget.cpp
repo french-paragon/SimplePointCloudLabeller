@@ -40,12 +40,15 @@ PointsDisplayWidget::PointsDisplayWidget(QWidget *parent)
     _azimuth_angle = 45;
     _zenith_angle = 45;
 
+    _ptSize = 2;
+
 }
 
-void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points, QVector<QColor> const& colors) {
+void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points, QVector<QColor> const& colors, QVector<bool> const& mask) {
 
     _data.resize(points.size()*3);
     _color.resize(points.size()*3);
+    _mask.resize(points.size());
 
     float minX = points[0].x();
     float maxX = points[0].x();
@@ -73,6 +76,16 @@ void PointsDisplayWidget::setPoints(QVector<QVector3D> const& points, QVector<QC
             _color[i*3] = 0;
             _color[i*3+1] = 0;
             _color[i*3+2] = 0;
+
+        }
+
+        if (mask.size() > i) {
+
+            _mask[i] = (mask[i]) ? 1 : 0;
+
+        } else {
+
+            _mask[i] = 0;
 
         }
 
@@ -161,6 +174,9 @@ void PointsDisplayWidget::initializeGL() {
     _lm_col_buffer.create();
     _lm_col_buffer.setUsagePattern(QOpenGLBuffer::DynamicDraw);
 
+    _lm_mask_buffer.create();
+    _lm_mask_buffer.setUsagePattern(QOpenGLBuffer::DynamicDraw);
+
     _landMarkPointProgram = new QOpenGLShaderProgram();
     _landMarkPointProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/shaders/viewPersp.vert");
     _landMarkPointProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/shaders/viewPoints.frag");
@@ -186,6 +202,7 @@ void PointsDisplayWidget::paintGL() {
 
     _landMarkPointProgram->bind();
     _scene_vao.bind();
+
     _lm_pos_buffer.bind();
 
     if (_needToLoad) {
@@ -195,20 +212,52 @@ void PointsDisplayWidget::paintGL() {
     int vertexLocation = _landMarkPointProgram->attributeLocation("in_location");
     _landMarkPointProgram->enableAttributeArray(vertexLocation);
     _landMarkPointProgram->setAttributeBuffer(vertexLocation, GL_FLOAT, 0, 3);
+
     _lm_col_buffer.bind();
 
     if (_needToLoad) {
         _lm_col_buffer.allocate(_color.data(), _color.size()*sizeof (GLfloat));
-        _needToLoad = false;
     }
 
     int colorLocation = _landMarkPointProgram->attributeLocation("in_color");
     _landMarkPointProgram->enableAttributeArray(colorLocation);
     _landMarkPointProgram->setAttributeBuffer(colorLocation, GL_FLOAT, 0, 3);
 
+    _lm_mask_buffer.bind();
+
+    if (_needToLoad) {
+        _lm_mask_buffer.allocate(_mask.data(), _mask.size()*sizeof (GLfloat));
+    }
+
+    int maskLocation = _landMarkPointProgram->attributeLocation("in_cluster_mask");
+    _landMarkPointProgram->enableAttributeArray(maskLocation);
+    _landMarkPointProgram->setAttributeBuffer(maskLocation, GL_FLOAT, 0, 1);
+
+    _needToLoad = false;
+
+    _landMarkPointProgram->setUniformValue("passId", 1);
     _landMarkPointProgram->setUniformValue("minZ", _min_z);
     _landMarkPointProgram->setUniformValue("maxZ", _max_z);
+    _landMarkPointProgram->setUniformValue("ptSize", _ptSize);
     _landMarkPointProgram->setUniformValue("displayPointsColor", _displayColors);
+
+    //draw the first pass
+    for (int i = 0; i < 4; i++) {
+
+        QRect v = _viewViewports[i];
+        f->glViewport(v.left(), v.top(), v.width(), v.height());
+
+        _landMarkPointProgram->setUniformValue("matrixViewProjection", _viewProjections[i]);
+        _landMarkPointProgram->setUniformValue("origin", QVector3D(_center_x, _center_y, _center_z));
+
+        f->glDrawArrays(GL_POINTS, 0, _n_points);
+    }
+
+    _landMarkPointProgram->setUniformValue("passId", 2);
+
+    //draw the second pass, only the main cluster
+
+    f->glClear(GL_DEPTH_BUFFER_BIT);
 
     for (int i = 0; i < 4; i++) {
 
@@ -431,6 +480,15 @@ void PointsDisplayWidget::rotateAzimuth(float degrees) {
         recomputeViews();
         update();
     }
+}
+
+void PointsDisplayWidget::increaseSize(float scale) {
+    _ptSize *= scale;
+    update();
+}
+void PointsDisplayWidget::decreaseSize(float scale) {
+    _ptSize /= scale;
+    update();
 }
 
 void PointsDisplayWidget::recomputeViews() {

@@ -1,14 +1,29 @@
 #version 150
 
 uniform bool displayPointsColor;
+uniform int passId;
 
 in float heightProp;
 in vec4 pointCol;
+in float pointInCluster;
 
 void main(void)
 {
+
+    if (pointInCluster < 0.5) {
+        if (passId <= 1) {
+            gl_FragColor = vec4(0.8, 0.8, 0.8, 1.0);
+        } else {
+            return;
+        }
+        return;
+    }
+
     if (displayPointsColor) {
         gl_FragColor = pointCol;
+        if (passId > 1) {
+            gl_FragColor[3] = 0.5;
+        }
         return;
     }
 
@@ -33,5 +48,11 @@ void main(void)
         fullProp -= 1;
     }
 
-    gl_FragColor = fullProp*c2 + (1-fullProp)*c1;
+    vec4 composedColor = fullProp*c2 + (1-fullProp)*c1;
+
+    if (passId > 1) {
+        gl_FragColor = composedColor;
+    } else {
+        gl_FragColor = composedColor;
+    }
 }

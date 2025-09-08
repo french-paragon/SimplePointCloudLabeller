@@ -55,6 +55,7 @@ int main(int argc, char** argv) {
     QString noTimingArgName = "noTiming";
     QString viewerModeArgName = "viewerMode";
     QString correctionModeArgName = "correctionMode";
+    QString maskName = "mask";
 
     QCommandLineOption classOption(QStringList{"c", classesArgName});
     classOption.setDescription("Possible classes, once per invocation of the option");
@@ -69,11 +70,14 @@ int main(int argc, char** argv) {
     QCommandLineOption correctionModeOption(QStringList{"k", correctionModeArgName});
     correctionModeOption.setDescription("Add a button to correct point clouds in viewer mode.");
 
+    QCommandLineOption maskArgumentOption(QStringList{"m", maskName}, "attribute used for masking", "attribute_name", "");
+
     parser.addPositionalArgument(targetFolderArgName, "Folder where the targets points cloud are located");
     parser.addOption(classOption);
     parser.addOption(noTimingOption);
     parser.addOption(viewerModeOption);
     parser.addOption(correctionModeOption);
+    parser.addOption(maskArgumentOption);
 
     parser.addHelpOption();
 
@@ -95,6 +99,7 @@ int main(int argc, char** argv) {
 
     QStringList reservedClasses{FileListManager::noClassLabel, FileListManager::skippedClassLabel};
     QStringList classes = parser.values(classOption);
+    QString maskAttribute = parser.value(maskArgumentOption);
 
     bool viewerMode = parser.isSet(viewerModeOption);
     bool correctionMode = parser.isSet(correctionModeOption);
@@ -159,7 +164,7 @@ int main(int argc, char** argv) {
 
     MainWindow mw;
 
-    QObject::connect(&mw, &MainWindow::labelChoosen, [&fileListManager, &classes, &folder, &mw, &out, &err, &nLabeledElements] (int id) -> void {
+    QObject::connect(&mw, &MainWindow::labelChoosen, [&fileListManager, &classes, &folder, &mw, &out, &err, &nLabeledElements, &maskAttribute] (int id) -> void {
        QString label;
 
        if (id >= 0 and id < classes.size()) {
@@ -183,11 +188,11 @@ int main(int argc, char** argv) {
 
        nLabeledElements++;
 
-       mw.openPointCloud(fileListManager.currentFilePath());
+       mw.openPointCloud(fileListManager.currentFilePath(), maskAttribute);
 
     });
 
-    QObject::connect(&mw, &MainWindow::moveToNext, [&fileListManager, &classes, &folder, &mw, &out, &err, &nSkippedElements] () -> void {
+    QObject::connect(&mw, &MainWindow::moveToNext, [&fileListManager, &classes, &folder, &mw, &out, &err, &nSkippedElements, &maskAttribute] () -> void {
        out << "Skip requested for file: " << fileListManager.currentFilePath() << Qt::endl;
 
        fileListManager.classifyCurrentFile(FileListManager::skippedClassLabel);
@@ -201,19 +206,19 @@ int main(int argc, char** argv) {
 
        nSkippedElements++;
 
-       mw.openPointCloud(fileListManager.currentFilePath());
+       mw.openPointCloud(fileListManager.currentFilePath(), maskAttribute);
 
     });
 
-    QObject::connect(&mw, &MainWindow::navigate, [&fileListManager, &classes, &folder, &mw, &out, &err] (int delta) -> void {
+    QObject::connect(&mw, &MainWindow::navigate, [&fileListManager, &classes, &folder, &mw, &out, &err, &maskAttribute] (int delta) -> void {
 
         fileListManager.moveCurrentIndex(delta);
 
-        mw.openPointCloud(fileListManager.currentFilePath());
+        mw.openPointCloud(fileListManager.currentFilePath(), maskAttribute);
 
     });
 
-    QObject::connect(&mw, &MainWindow::requestLabelCorrection, [&fileListManager, &classes, &folder, &mw, &out, &err] () -> void {
+    QObject::connect(&mw, &MainWindow::requestLabelCorrection, [&fileListManager, &classes, &folder, &mw, &out, &err, &maskAttribute] () -> void {
 
         fileListManager.classifyCurrentFile(FileListManager::noClassLabel);
 
@@ -223,7 +228,7 @@ int main(int argc, char** argv) {
                                      QObject::tr("All file in the class have been corrected!"));
         }
 
-        mw.openPointCloud(fileListManager.currentFilePath());
+        mw.openPointCloud(fileListManager.currentFilePath(), maskAttribute);
 
     });
 
@@ -232,7 +237,7 @@ int main(int argc, char** argv) {
     } else {
         mw.configureViewerMode(correctionMode);
     }
-    mw.openPointCloud(fileListManager.currentFilePath());
+    mw.openPointCloud(fileListManager.currentFilePath(), maskAttribute);
     //mw.openDefaultPointCloud();
 
     mw.show();

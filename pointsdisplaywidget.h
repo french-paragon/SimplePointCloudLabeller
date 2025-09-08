@@ -32,13 +32,16 @@ public:
     explicit PointsDisplayWidget(QWidget *parent = nullptr);
     ~PointsDisplayWidget();
 
-    void setPoints(QVector<QVector3D> const& points, const QVector<QColor> &colors);
+    void setPoints(QVector<QVector3D> const& points, const QVector<QColor> &colors, const QVector<bool> &mask);
 
     bool displayColors() const;
     void displayColors(bool displayColors);
 
     void rotateZenith(float degrees);
     void rotateAzimuth(float degrees);
+
+    void increaseSize(float scale = 1.2);
+    void decreaseSize(float scale = 1.2);
 
 Q_SIGNALS:
 
@@ -66,14 +69,18 @@ protected:
     float _center_z;
     float _max_z;
 
+    float _ptSize;
+
     std::vector<GLfloat> _data;
     std::vector<GLfloat> _color;
+    std::vector<GLfloat> _mask;
     bool _needToLoad;
 
     QOpenGLVertexArrayObject _scene_vao;
 
     QOpenGLBuffer _lm_pos_buffer;
     QOpenGLBuffer _lm_col_buffer;
+    QOpenGLBuffer _lm_mask_buffer;
 
     QOpenGLShaderProgram* _landMarkPointProgram;
 
